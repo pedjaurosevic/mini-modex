@@ -272,17 +272,6 @@ class KonApiServer:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
             yield "data: [DONE]\n\n"
 
-    async def start(self) -> None:
-        """Start the server (non-blocking)."""
-        import uvicorn
-        uvicorn.run(
-            self.app,
-            host=self.host,
-            port=self.port,
-            log_level="info",
-        )
-
-
 def main() -> None:
     """Run the API server."""
     server = KonApiServer(
@@ -294,7 +283,9 @@ def main() -> None:
     print(f"Kon API server starting on http://0.0.0.0:18083")
     print(f"Model: {server.model}")
     print(f"Provider: {server.provider}")
-    asyncio.run(server.start())
+    # uvicorn.run() manages its own event loop
+    import uvicorn
+    uvicorn.run(server.app, host=server.host, port=server.port, log_level="info")
 
 
 if __name__ == "__main__":
