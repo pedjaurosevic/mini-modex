@@ -15,10 +15,11 @@ from .auth import AuthCommands
 from .base import CommandSupport
 from .models import ModelCommands
 from .sessions import SessionCommands
+from .psychology import PsychologyCommands
 from .settings import SettingsCommands, SettingsSelectionResult
 
 
-class CommandsMixin(SettingsCommands, ModelCommands, SessionCommands, AuthCommands):
+class CommandsMixin(SettingsCommands, ModelCommands, SessionCommands, AuthCommands, PsychologyCommands):
     def _handle_command(self, text: str) -> bool:
         parts = text[1:].split(maxsplit=1)
         cmd = parts[0] if parts else ""
@@ -81,6 +82,9 @@ class CommandsMixin(SettingsCommands, ModelCommands, SessionCommands, AuthComman
         if cmd == "compact":
             self._handle_compact_command()
             return True
+        if cmd == "psychology":
+            self._handle_psychology_command(args)
+            return True
 
         return False
 
@@ -94,6 +98,7 @@ __all__ = [
     "CommandSupport",
     "CommandsMixin",
     "ModelCommands",
+    "PsychologyCommands",
     "SessionCommands",
     "SettingsCommands",
     "SettingsSelectionResult",

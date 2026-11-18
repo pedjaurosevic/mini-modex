@@ -128,6 +128,20 @@ class NotificationsConfig(BaseModel):
     volume: float = Field(default=0.5, ge=0.0, le=1.0)
 
 
+
+class PsychologyConfig(BaseModel):
+    """Configuration for the psychology module."""
+    enabled: bool = True
+    api_url: str = "http://localhost:18083"
+    state_dir: str = "~/.kon/psychology"
+    auto_detect: bool = True
+    auto_strategy: bool = True
+    trust_update: bool = True
+    emotion_tracking: bool = True
+    pattern_recording: bool = True
+    max_emotion_history: int = 100
+    fallback_enabled: bool = True  # Use local detection if API unavailable
+
 class ConfigSchema(BaseModel):
     meta: MetaConfig
     llm: LLMConfig
@@ -137,6 +151,7 @@ class ConfigSchema(BaseModel):
     tools: ToolsConfig = ToolsConfig()
     permissions: PermissionsConfig
     notifications: NotificationsConfig = NotificationsConfig()
+    psychology: PsychologyConfig = PsychologyConfig()
 
 
 # =================================================================================================
@@ -232,6 +247,10 @@ class Config:
     @property
     def notifications(self) -> NotificationsConfig:
         return self._parsed.notifications
+
+    @property
+    def psychology(self) -> PsychologyConfig:
+        return self._parsed.psychology
 
     @property
     def binaries(self) -> _BinariesConfig:

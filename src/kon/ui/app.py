@@ -53,6 +53,7 @@ from .startup import StartupMixin
 from .styles import get_styles
 from .tree import TreeSelector
 from .urls import extract_urls, url_label
+from .psychology_widget import PsychologyWidget
 from .widgets import InfoBar, QueueDisplay, StatusLine, format_path
 
 _GIT_BRANCH_REFRESH_INTERVAL_SECONDS = 1.0
@@ -83,6 +84,7 @@ class Kon(
         Binding("ctrl+l", "open_response_url", "Open response URL", priority=True),
         Binding("ctrl+shift+t", "toggle_thinking", "Toggle thinking", priority=True),
         Binding("shift+tab", "cycle_permission_mode", "Cycle permission mode", priority=True),
+        Binding("ctrl+p", "toggle_psychology", "Toggle psychology", priority=True),
     ]
 
     # Textual registers @on handlers through a metaclass that only scans this
@@ -207,6 +209,7 @@ class Kon(
         yield InputBox(cwd=self._cwd, id="input-box")
         yield FloatingList(window_size=10, label_width=6, id="completion-list")
         yield TreeSelector(id="tree-selector")
+        yield PsychologyWidget(id="psychology-widget")
         yield InfoBar(
             cwd=self._cwd,
             model=self._runtime.model,
@@ -587,6 +590,34 @@ class Kon(
             self._clear_approval_state()
             return True
         return False
+
+    def toggle_psychology(self) -> None:
+        """Toggle psychology widget visibility."""
+        self._psychology_visible = not self._psychology_visible
+        widget = self.query_one("#psychology-widget", PsychologyWidget)
+        widget.toggle_visibility(self._psychology_visible)
+        status = "shown" if self._psychology_visible else "hidden"
+        chat = self.query_one("#chat-log", ChatLog)
+        chat.add_info_message(f"Psychology widget {status}")
+
+    def update_psychology_display(self) -> None:
+        """Update psychology widget with current state."""
+        if not self._psychology_visible:
+            return
+        engine = getattr(self._runtime.agent, '_psychology_engine', None)
+        if engine is None:
+            return
+        try:
+            state = engine.get_state()
+            widget = self.query_one("#psychology-widget", PsychologyWidget)
+            widget.update(
+                emotion=state.current_emotion,
+                intensity=state.current_intensity,
+                trust=state.trust_level,
+                trend=state.emotional_trend,
+            )
+        except Exception:
+            pass
 
     def on_key(self, event: events.Key) -> None:
         if self._approval_future is None or self._approval_future.done():

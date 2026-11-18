@@ -46,9 +46,44 @@ from .session import MessageEntry, Session
 from .tools import BaseTool
 from .turn import run_single_turn
 
+# Psychology module (optional, loaded lazily)
+_psychology_engine = None
+_psychology_prompt = None
+
+
+def _get_psychology_engine():
+    """Lazily import and return the psychology engine."""
+    global _psychology_engine
+    if _psychology_engine is None:
+        try:
+            from .psychology import PsychologyEngine
+            from . import config as kon_config
+            psy_cfg = kon_config.psychology
+            _psychology_engine = PsychologyEngine(
+                api_url=psy_cfg.api_url,
+                state_dir=psy_cfg.state_dir,
+                enabled=psy_cfg.enabled,
+            )
+        except ImportError:
+            _psychology_engine = None
+    return _psychology_engine
+
+
+def _get_psychology_prompt(state=None):
+    """Build psychology prompt section."""
+    global _psychology_prompt
+    if _psychology_prompt is None:
+        try:
+            from .psychology.prompt import build_psychology_prompt
+            _psychology_prompt = build_psychology_prompt(state)
+        except ImportError:
+            _psychology_prompt = ""
+    return _psychology_prompt
+
 
 def build_system_prompt(
-    cwd: str, context: Context | None = None, tools: list[BaseTool] | None = None
+    cwd: str, context: Context | None = None, tools: list[BaseTool] | None = None,
+    psychology_state=None,
 ) -> str:
     now = datetime.now()
     date_time = now.strftime("%A, %B %d, %Y at %I:%M %p %Z").strip()
@@ -84,6 +119,12 @@ def build_system_prompt(
     prompt += f"\n\n# Env\n\nCurrent date and time: {date_time}"
     prompt += f"\nCurrent working directory: {cwd}"
 
+    # Inject psychology section if state is provided
+    if psychology_state is not None:
+        psy_prompt = _get_psychology_prompt(psychology_state)
+        if psy_prompt:
+            prompt += f"\n\n{psy_prompt}"
+
     return prompt
 
 
@@ -103,6 +144,7 @@ class Agent:
         context: Context | None = None,
         system_prompt: str | None = None,
         config: AgentConfig | None = None,
+        psychology_engine=None,
     ):
         self.provider = provider
         self.tools = tools
@@ -110,8 +152,11 @@ class Agent:
         self.config = config or AgentConfig()
         self._cwd = cwd or os.getcwd()
         self._context = context or Context.load(self._cwd)
+        self._psychology_engine = psychology_engine
+        self._psychology_state = None
         self._system_prompt = system_prompt or build_system_prompt(
-            self._cwd, self._context, tools=tools
+            self._cwd, self._context, tools=tools,
+            psychology_state=self._psychology_state,
         )
         self._run_usage = Usage()
 
@@ -125,7 +170,10 @@ class Agent:
 
     def reload_context(self) -> None:
         self._context = Context.load(self._cwd)
-        self._system_prompt = build_system_prompt(self._cwd, self._context, tools=self.tools)
+        self._system_prompt = build_system_prompt(
+            self._cwd, self._context, tools=self.tools,
+            psychology_state=self._psychology_state,
+        )
 
     @property
     def messages(self) -> list[Message]:
@@ -214,6 +262,20 @@ class Agent:
                         stop_reason = event.stop_reason
                         for result in tool_results:
                             self.session.append_message(result)
+
+                        # Process psychology after each turn
+                        if self._psychology_engine and self._psychology_engine.enabled:
+                            try:
+                                result = await self._psychology_engine.process_turn(query)
+                                if result:
+                                    self._psychology_state = result.state
+                                    # Update system prompt with new psychology state
+                                    self._system_prompt = build_system_prompt(
+                                        self._cwd, self._context, tools=self.tools,
+                                        psychology_state=self._psychology_state,
+                                    )
+                            except Exception:
+                                pass  # Non-critical, continue anyway
                     elif isinstance(event, InterruptedEvent):
                         was_interrupted = True
 

@@ -21,6 +21,27 @@ from .llm import (
 )
 from .llm.base import AuthMode
 from .loop import Agent, build_system_prompt
+
+# Psychology module (optional)
+_psychology_engine = None
+
+
+def _get_psychology_engine():
+    """Lazily initialize the psychology engine."""
+    global _psychology_engine
+    if _psychology_engine is None:
+        try:
+            from .psychology import PsychologyEngine
+            from . import config as kon_config
+            psy_cfg = kon_config.psychology
+            _psychology_engine = PsychologyEngine(
+                api_url=psy_cfg.api_url,
+                state_dir=psy_cfg.state_dir,
+                enabled=psy_cfg.enabled,
+            )
+        except ImportError:
+            _psychology_engine = None
+    return _psychology_engine
 from .session import CustomMessageEntry, MessageEntry, Session
 from .tools import BaseTool
 
@@ -89,6 +110,10 @@ class ConversationRuntime:
         self.session: Session | None = None
         self.agent: Agent | None = None
         self.context: Context | None = None
+        self._psychology_engine = None
+        # Initialize psychology engine if enabled
+        if kon_config.psychology.enabled:
+            self._psychology_engine = _get_psychology_engine()
 
     def resolve_system_prompt(
         self, session: Session | None = None, context: Context | None = None
@@ -168,6 +193,7 @@ class ConversationRuntime:
             cwd=self.cwd,
             context=context,
             system_prompt=self.resolve_system_prompt(session, context=context),
+            psychology_engine=self._psychology_engine,
         )
 
     def initialize(

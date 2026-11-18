@@ -1,5 +1,5 @@
 [meta]
-config_version = 6
+config_version = 7
 
 [llm]
 default_provider = "openai-codex" # "zhipu", "xai", "github-copilot", "openai-codex"
@@ -86,6 +86,28 @@ mode = "prompt" # "prompt" or "auto"
 enabled = false
 # Audio playback volume from 0.0 (muted) to 1.0 (full volume).
 volume = 0.5
+
+[psychology]
+# Enable/disable the psychology module
+enabled = true
+# URL of the mini-modex psychology API
+api_url = "http://localhost:18083"
+# Directory for persistent psychology state
+state_dir = "~/.kon/psychology"
+# Auto-detect emotions from user messages
+auto_detect = true
+# Auto-select therapeutic strategies
+auto_strategy = true
+# Update trust level based on interactions
+trust_update = true
+# Track emotion history
+emotion_tracking = true
+# Record conversation patterns
+pattern_recording = true
+# Maximum emotion history entries to keep
+max_emotion_history = 100
+# Use local keyword-based detection if API unavailable
+fallback_enabled = true
 
 # Example: DeepSeek provider
 # export DEEPSEEK_API_KEY="sk-your-api-key"
